@@ -19,6 +19,9 @@ repositories {
 }
 
 dependencies {
+    // 💡 REST API 및 웹 서버 (Tomcat) 구동을 위한 의존성 추가
+    implementation("org.springframework.boot:spring-boot-starter-web")
+
     implementation("org.springframework.boot:spring-boot-starter")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
