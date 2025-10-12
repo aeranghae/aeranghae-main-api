@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # 이미지 푸시를 위해 이 작업(job)에서 secrets 사용을 허용
+    # 이미지 푸시를 위해 이 작업(job)에서 secrets 사용을 허용합니다.
     permissions:
       contents: read
       packages: write # GHCR에 푸시하기 위해 'packages: write' 권한이 필수입니다.
