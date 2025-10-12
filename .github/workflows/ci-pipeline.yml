@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # 이미지 푸시를 위해 이 작업(job)에서 secrets 사용을 허용합니다.
+    # 이미지 푸시를 위해 이 작업(job)에서 secrets 사용을 허용
     permissions:
       contents: read
       packages: write # GHCR에 푸시하기 위해 'packages: write' 권한이 필수입니다.
@@ -31,12 +31,7 @@ jobs:
       - name: Grant Execute Permission to gradlew
         run: chmod +x gradlew
 
-    # 💡 [새로운 단계] 레포지토리 이름을 소문자로 변환하여 환경 변수(REPO_LOWER)에 저장합니다.
-      - name: Set Repository Name Lowercase
-        run: echo "REPO_LOWER=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
       # --- Docker Build/Push 단계 시작 ---
-
       - name: Set up Docker Buildx # Docker 빌드를 위한 환경 설정
         uses: docker/setup-buildx-action@v3
 
@@ -50,21 +45,18 @@ jobs:
       - name: Build and Push Docker Image # Docker 이미지 빌드 및 푸시
         uses: docker/build-push-action@v5
         with:
-          context: .
-          push: true
-          # 💡 REPO_LOWER 환경 변수를 사용하며, 줄 바꿈 대신 쉼표(,)로 구분합니다.
-          tags: ${{ env.REPO_LOWER }}:latest,ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}
-          cache-from: type=gha
+          context: . # Dockerfile이 있는 디렉터리
+          push: true # GHCR로 푸시 활성화
+          tags: |
+            ghcr.io/${{ github.repository }}:latest            
+            ghcr.io/${{ github.repository }}:${{ github.sha }} # 커밋 해시 태그도 함께 푸시
+          cache-from: type=gha # GitHub Actions 캐싱을 활용하여 빌드 속도 향상
           cache-to: type=gha,mode=max
 
       # --- Docker Build/Push 단계 종료 ---
-
       - name: Upload Test Results # CI 테스트 결과 아티팩트 저장 (기존 단계)
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: build/reports/tests
           if-no-files-found: ignore
-
-
-      # 추가 예정 입니다.
