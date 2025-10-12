@@ -39,8 +39,8 @@ jobs:
       - name: Docker Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }} # Docker Hub ID Secret 사용
-          password: ${{ secrets.DOCKER_HUB_PASSWORD }} # Docker Hub PAT Secret 사용
+          username: ${{ secrets.DOCKER_USERNAME }} # Docker Hub ID Secret 사용
+          password: ${{ secrets.DOCKER_PASSWORD }} # Docker Hub PAT Secret 사용
 
       # --- Docker Build/Push 단계 시작 ---
 
