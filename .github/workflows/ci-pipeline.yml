@@ -1,4 +1,4 @@
-# .github/workflows/ci-pipeline.yml 파일 수정
+# .github/workflows/ci-pipeline.yml 파일 내용
 
 name: Java CI/CD with Gradle and Docker
 
@@ -12,10 +12,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # 이미지 푸시를 위해 이 작업(job)에서 secrets 사용을 허용
+    # GITHUB_TOKEN이 GHCR에 푸시할 수 있도록 권한 부여
     permissions:
       contents: read
-      packages: write # GHCR에 푸시하기 위해 'packages: write' 권한이 필수입니다.
+      packages: write
 
     steps:
       - name: Checkout Repository
@@ -31,30 +31,43 @@ jobs:
       - name: Grant Execute Permission to gradlew
         run: chmod +x gradlew
 
+      # 💡 1. 레포지토리 이름을 소문자로 변환하여 환경 변수(REPO_LOWER)에 저장
+      - name: Set Repository Name Lowercase
+        run: echo "REPO_LOWER=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      # 💡 2. Docker Hub에 로그인 (FROM 이미지 접근 문제 해결)
+      - name: Docker Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }} # Docker Hub ID Secret 사용
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }} # Docker Hub PAT Secret 사용
+
       # --- Docker Build/Push 단계 시작 ---
+
       - name: Set up Docker Buildx # Docker 빌드를 위한 환경 설정
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker Login to GHCR # GHCR(GitHub Container Registry)에 로그인
+      # 💡 3. GHCR에 로그인 (가장 강력하고 안전한 GITHUB_TOKEN 사용)
+      - name: Docker Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # GitHub가 제공하는 임시 토큰 사용
 
       - name: Build and Push Docker Image # Docker 이미지 빌드 및 푸시
         uses: docker/build-push-action@v5
         with:
-          context: . # Dockerfile이 있는 디렉터리
-          push: true # GHCR로 푸시 활성화
-          tags: |
-            ghcr.io/${{ github.repository }}:latest            
-            ghcr.io/${{ github.repository }}:${{ github.sha }} # 커밋 해시 태그도 함께 푸시
-          cache-from: type=gha # GitHub Actions 캐싱을 활용하여 빌드 속도 향상
+          context: .
+          push: true
+          # 💡 소문자 환경 변수 REPO_LOWER와 쉼표(,) 구분자를 사용하여 태그 생성
+          tags: ghcr.io/${{ env.REPO_LOWER }}:latest,ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}
+          cache-from: type=gha
           cache-to: type=gha,mode=max
 
       # --- Docker Build/Push 단계 종료 ---
-      - name: Upload Test Results # CI 테스트 결과 아티팩트 저장 (기존 단계)
+
+      - name: Upload Test Results # CI 테스트 결과 아티팩트 저장
         uses: actions/upload-artifact@v4
         with:
           name: test-results
