@@ -73,3 +73,6 @@ jobs:
           name: test-results
           path: build/reports/tests
           if-no-files-found: ignore
+
+
+      # 테스트 7회차
