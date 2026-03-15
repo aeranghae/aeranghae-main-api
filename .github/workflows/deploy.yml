@@ -46,31 +46,47 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           script: |
-            # 6-1. 기존 프로세스 종료 (더 안전한 방식)
-            echo "기존 프로세스 종료 중..."
+            echo "--- 서버 배포 스크립트 시작 ---"
+            
+            # 6-1. 기존 프로세스 확인 및 종료
+            # || true를 붙여 프로세스가 없거나 종료 시 에러가 나도 스크립트가 중단되지 않게 합니다.
+            echo "기존 프로세스 확인 중..."
             PID=$(pgrep -f 'main-api')
             if [ -n "$PID" ]; then
-              kill -15 $PID
-              sleep 5
-              # 여전히 살아있다면 강제 종료
-              kill -9 $PID 2>/dev/null || true
+              echo "기존 프로세스(PID: $PID) 종료 시도 (SIGTERM)..."
+              kill -15 $PID || true
+              sleep 7
+            
+              # 여전히 살아있으면 강제 종료 (SIGKILL)
+              if pgrep -f 'main-api' > /dev/null; then
+                echo "강제 종료 시도 (SIGKILL)..."
+                kill -9 $PID || true
+                sleep 2
+              fi
+            else
+              echo "종료할 기존 프로세스가 없습니다."
             fi
             
-            # 6-2. 기존 파일 정리
+            # 6-2. 빌드 파편 정리
             rm -f ~/app/*-plain.jar
             
-            # 6-3. 애플리케이션 실행
-            echo "새로운 버전 실행 중..."
-            # nohup과 disown을 조합하여 SSH 세션 종료 후에도 프로세스를 유지합니다.
+            # 6-3. 새로운 버전 실행
+            # nohup 실행 결과를 로그 파일에 담고 백그라운드로 실행합니다.
+            echo "새로운 버전 실행 시도..."
             nohup java -jar ~/app/main-api-*.jar \
               --spring.config.location=file:/home/aeranghae/app/application-prod.yml \
               > ~/app/app.log 2>&1 &
             
-            # 잠시 대기 후 프로세스가 잘 떴는지 확인
-            sleep 10
+            # 6-4. 스프링 부트가 초기화될 시간을 충분히 줍니다.
+            echo "스프링 부트 초기화 대기 중 (15초)..."
+            sleep 15
+            
+            # 6-5. 최종 실행 상태 확인 및 로그 출력
             if pgrep -f 'main-api' > /dev/null; then
-              echo "서버가 성공적으로 실행되었습니다."
+              echo "--- [성공] 서버가 정상적으로 실행되었습니다! ---"
+              ps -ef | grep 'main-api' | grep -v grep
             else
-              echo "서버 실행에 실패했습니다. 로그(~/app/app.log)를 확인하세요."
+              echo "--- [실패] 서버가 실행되지 않았습니다. 로그 마지막 부분을 출력합니다. ---"
+              tail -n 30 ~/app/app.log
               exit 1
             fi
