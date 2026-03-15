@@ -45,26 +45,25 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           script: |
-            echo "--- 서버 배포 스크립트 시작 ---"
+            # Zsh에서 파일이 없을 때 에러내는 것 방지
+            [[ -n $ZSH_VERSION ]] && setopt NULL_GLOB 2>/dev/null || true
             
-            # 절대 경로 설정 (계정명을 자동으로 가져옴)
+            echo "--- 서버 배포 스크립트 시작 ---"
             APP_PATH="$HOME/app"
             BACKUP_PATH="$APP_PATH/backup"
-            
-            # 6-1. 백업 폴더 생성
             mkdir -p $BACKUP_PATH
             
-            # 6-2. 기존 실행 중인 파일 백업
-            # 틸드(~) 대신 절대 경로 변수를 사용합니다.
-            EXISTING_JAR=$(ls $APP_PATH/main-api-*.jar 2>/dev/null | grep -v "backup" | head -n 1)
-            if [ -n "$EXISTING_JAR" ]; then
-              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-              mv "$EXISTING_JAR" "$BACKUP_PATH/main-api-$TIMESTAMP.jar"
-              echo "기존 파일을 백업했습니다: $BACKUP_PATH/main-api-$TIMESTAMP.jar"
-            fi
+            # 6-1. 기존 파일 백업 (새로 전송된 파일과 겹치지 않게 주의)
+            # 팁: SCP는 5단계에서 이미 파일을 보냈으므로, 현재 ~/app에는 새 파일이 와 있는 상태입니다.
+            # 가장 최근 파일(새 파일)을 제외한 나머지 .jar 파일들을 백업으로 이동합니다.
+            echo "구버전 파일 백업 중..."
+            ls -t $APP_PATH/main-api-*.jar 2>/dev/null | tail -n +2 | while read -r old_jar; do
+                TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                mv "$old_jar" "$BACKUP_PATH/$(basename "$old_jar" .jar)_$TIMESTAMP.jar"
+                echo "백업 완료: $old_jar"
+            done
 
-            # 6-3. 기존 프로세스 종료
-            # 세션 종료 에러(143)를 피하기 위해 신호를 완전히 분리합니다.
+            # 6-2. 기존 프로세스 종료
             echo "기존 프로세스 종료 중..."
             PID=$(pgrep -f 'main-api' || true)
             if [ -n "$PID" ]; then
@@ -73,23 +72,26 @@ jobs:
               kill -9 $PID 2>/dev/null || true
             fi
             
-            # 6-4. 빌드 파편 정리
-            rm -f $APP_PATH/*-plain.jar
+            # 6-3. 불필요한 파일 정리 (에러 무시 처리)
+            rm -f $APP_PATH/*-plain.jar 2>/dev/null || true
             
-            # 6-5. 새로운 버전 실행
+            # 6-4. 새로운 버전 실행
             echo "새로운 버전 실행 시도..."
-            NEW_JAR=$(ls $APP_PATH/main-api-*.jar 2>/dev/null | head -n 1)
+            # 최신 파일을 찾음
+            NEW_JAR=$(ls -t $APP_PATH/main-api-*.jar 2>/dev/null | head -n 1)
             
             if [ -z "$NEW_JAR" ]; then
-              echo "실행할 JAR 파일을 찾을 수 없습니다."
+              echo "실행할 JAR 파일을 찾을 수 없습니다. 경로: $APP_PATH"
+              ls -al $APP_PATH
               exit 1
             fi
             
-            nohup java -jar $NEW_JAR \
+            echo "실행 파일: $NEW_JAR"
+            nohup java -jar "$NEW_JAR" \
               --spring.config.location=file:$APP_PATH/application-prod.yml \
               > $APP_PATH/app.log 2>&1 &
             
-            # 6-6. 대기 및 결과 확인
+            # 6-5. 대기 및 결과 확인
             echo "스프링 부트 초기화 대기 중 (15초)..."
             sleep 15
             
