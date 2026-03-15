@@ -38,68 +38,68 @@ jobs:
           target: "~/app"
           strip_components: 2
 
-      - name: 6. 서버에서 애플리케이션 실행 및 백업 (SSH)
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.REMOTE_IP }}
-          username: ${{ secrets.REMOTE_USER }}
-          password: ${{ secrets.REMOTE_PASSWORD }}
-          script: |
-            # Zsh에서 파일이 없을 때 에러내는 것 방지
-            [[ -n $ZSH_VERSION ]] && setopt NULL_GLOB 2>/dev/null || true
-            
-            echo "--- 서버 배포 스크립트 시작 ---"
-            APP_PATH="$HOME/app"
-            BACKUP_PATH="$APP_PATH/backup"
-            mkdir -p $BACKUP_PATH
-            
-            # 6-1. 기존 파일 백업 (새로 전송된 파일과 겹치지 않게 주의)
-            # 팁: SCP는 5단계에서 이미 파일을 보냈으므로, 현재 ~/app에는 새 파일이 와 있는 상태입니다.
-            # 가장 최근 파일(새 파일)을 제외한 나머지 .jar 파일들을 백업으로 이동합니다.
-            echo "구버전 파일 백업 중..."
-            ls -t $APP_PATH/main-api-*.jar 2>/dev/null | tail -n +2 | while read -r old_jar; do
-                TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-                mv "$old_jar" "$BACKUP_PATH/$(basename "$old_jar" .jar)_$TIMESTAMP.jar"
-                echo "백업 완료: $old_jar"
-            done
-
-            # 6-2. 기존 프로세스 종료
-            echo "기존 프로세스 종료 중..."
-            PID=$(pgrep -f 'main-api' || true)
-            if [ -n "$PID" ]; then
-              kill -15 $PID 2>/dev/null || true
-              sleep 7
-              kill -9 $PID 2>/dev/null || true
-            fi
-            
-            # 6-3. 불필요한 파일 정리 (에러 무시 처리)
-            rm -f $APP_PATH/*-plain.jar 2>/dev/null || true
-            
-            # 6-4. 새로운 버전 실행
-            echo "새로운 버전 실행 시도..."
-            # 최신 파일을 찾음
-            NEW_JAR=$(ls -t $APP_PATH/main-api-*.jar 2>/dev/null | head -n 1)
-            
-            if [ -z "$NEW_JAR" ]; then
-              echo "실행할 JAR 파일을 찾을 수 없습니다. 경로: $APP_PATH"
-              ls -al $APP_PATH
-              exit 1
-            fi
-            
-            echo "실행 파일: $NEW_JAR"
-            nohup java -jar "$NEW_JAR" \
-              --spring.config.location=file:$APP_PATH/application.yml \
-              > $APP_PATH/app.log 2>&1 &
-            
-            # 6-5. 대기 및 결과 확인
-            echo "스프링 부트 초기화 대기 중 (15초)..."
-            sleep 15
-            
-            if pgrep -f 'main-api' > /dev/null; then
-              echo "--- [성공] 서버 실행 완료! ---"
-              ps -ef | grep 'main-api' | grep -v grep
-            else
-              echo "--- [실패] 서버 실행 실패. 로그 확인이 필요합니다. ---"
-              tail -n 30 $APP_PATH/app.log
-              exit 1
-            fi
+#      - name: 6. 서버에서 애플리케이션 실행 및 백업 (SSH)
+#        uses: appleboy/ssh-action@master
+#        with:
+#          host: ${{ secrets.REMOTE_IP }}
+#          username: ${{ secrets.REMOTE_USER }}
+#          password: ${{ secrets.REMOTE_PASSWORD }}
+#          script: |
+#            # Zsh에서 파일이 없을 때 에러내는 것 방지
+#            [[ -n $ZSH_VERSION ]] && setopt NULL_GLOB 2>/dev/null || true
+#
+#            echo "--- 서버 배포 스크립트 시작 ---"
+#            APP_PATH="$HOME/app"
+#            BACKUP_PATH="$APP_PATH/backup"
+#            mkdir -p $BACKUP_PATH
+#
+#            # 6-1. 기존 파일 백업 (새로 전송된 파일과 겹치지 않게 주의)
+#            # 팁: SCP는 5단계에서 이미 파일을 보냈으므로, 현재 ~/app에는 새 파일이 와 있는 상태입니다.
+#            # 가장 최근 파일(새 파일)을 제외한 나머지 .jar 파일들을 백업으로 이동합니다.
+#            echo "구버전 파일 백업 중..."
+#            ls -t $APP_PATH/main-api-*.jar 2>/dev/null | tail -n +2 | while read -r old_jar; do
+#                TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+#                mv "$old_jar" "$BACKUP_PATH/$(basename "$old_jar" .jar)_$TIMESTAMP.jar"
+#                echo "백업 완료: $old_jar"
+#            done
+#
+#            # 6-2. 기존 프로세스 종료
+#            echo "기존 프로세스 종료 중..."
+#            PID=$(pgrep -f 'main-api' || true)
+#            if [ -n "$PID" ]; then
+#              kill -15 $PID 2>/dev/null || true
+#              sleep 7
+#              kill -9 $PID 2>/dev/null || true
+#            fi
+#
+#            # 6-3. 불필요한 파일 정리 (에러 무시 처리)
+#            rm -f $APP_PATH/*-plain.jar 2>/dev/null || true
+#
+#            # 6-4. 새로운 버전 실행
+#            echo "새로운 버전 실행 시도..."
+#            # 최신 파일을 찾음
+#            NEW_JAR=$(ls -t $APP_PATH/main-api-*.jar 2>/dev/null | head -n 1)
+#
+#            if [ -z "$NEW_JAR" ]; then
+#              echo "실행할 JAR 파일을 찾을 수 없습니다. 경로: $APP_PATH"
+#              ls -al $APP_PATH
+#              exit 1
+#            fi
+#
+#            echo "실행 파일: $NEW_JAR"
+#            nohup java -jar "$NEW_JAR" \
+#              --spring.config.location=file:$APP_PATH/application.yml \
+#              > $APP_PATH/app.log 2>&1 &
+#
+#            # 6-5. 대기 및 결과 확인
+#            echo "스프링 부트 초기화 대기 중 (15초)..."
+#            sleep 15
+#
+#            if pgrep -f 'main-api' > /dev/null; then
+#              echo "--- [성공] 서버 실행 완료! ---"
+#              ps -ef | grep 'main-api' | grep -v grep
+#            else
+#              echo "--- [실패] 서버 실행 실패. 로그 확인이 필요합니다. ---"
+#              tail -n 30 $APP_PATH/app.log
+#              exit 1
+#            fi
