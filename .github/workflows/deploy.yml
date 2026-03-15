@@ -9,7 +9,6 @@ on:
 
 jobs:
   build-and-deploy:
-    # main 브랜치에 push 되었거나, PR이 성공적으로 Merge 되었을 때만 실행
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
 
@@ -48,45 +47,37 @@ jobs:
           script: |
             echo "--- 서버 배포 스크립트 시작 ---"
             
-            # 6-1. 기존 프로세스 확인 및 종료
-            # || true를 붙여 프로세스가 없거나 종료 시 에러가 나도 스크립트가 중단되지 않게 합니다.
-            echo "기존 프로세스 확인 중..."
-            PID=$(pgrep -f 'main-api')
-            if [ -n "$PID" ]; then
-              echo "기존 프로세스(PID: $PID) 종료 시도 (SIGTERM)..."
-              kill -15 $PID || true
-              sleep 7
-            
-              # 여전히 살아있으면 강제 종료 (SIGKILL)
-              if pgrep -f 'main-api' > /dev/null; then
-                echo "강제 종료 시도 (SIGKILL)..."
-                kill -9 $PID || true
-                sleep 2
-              fi
-            else
-              echo "종료할 기존 프로세스가 없습니다."
-            fi
+            # 6-1. 기존 프로세스 종료
+            # 세션 간섭을 피하기 위해 pkill을 사용하고, 에러를 무시하도록 처리합니다.
+            echo "기존 프로세스 확인 및 종료 중..."
+            (pkill -15 -f 'main-api' || true)
+            sleep 5
+            (pkill -9 -f 'main-api' || true)
+            sleep 2
             
             # 6-2. 빌드 파편 정리
             rm -f ~/app/*-plain.jar
             
             # 6-3. 새로운 버전 실행
-            # nohup 실행 결과를 로그 파일에 담고 백그라운드로 실행합니다.
             echo "새로운 버전 실행 시도..."
-            nohup java -jar ~/app/main-api-*.jar \
+            # 명시적으로 절대 경로를 사용하고, nohup 실행을 강화합니다.
+            BUILD_JAR=$(ls /home/aeranghae/app/main-api-*.jar | head -n 1)
+            nohup java -jar $BUILD_JAR \
               --spring.config.location=file:/home/aeranghae/app/application-prod.yml \
-              > ~/app/app.log 2>&1 &
+              > /home/aeranghae/app/app.log 2>&1 &
             
-            # 6-4. 스프링 부트가 초기화될 시간을 충분히 줍니다.
+            # 6-4. 스프링 부트 초기화 대기
             echo "스프링 부트 초기화 대기 중 (15초)..."
             sleep 15
             
-            # 6-5. 최종 실행 상태 확인 및 로그 출력
-            if pgrep -f 'main-api' > /dev/null; then
-              echo "--- [성공] 서버가 정상적으로 실행되었습니다! ---"
-              ps -ef | grep 'main-api' | grep -v grep
-            else
+            # 6-5. 최종 실행 상태 확인
+            # grep -v grep을 넣어 본인 확인 방지
+            CURRENT_PID=$(pgrep -f 'main-api' || true)
+            if [ -z "$CURRENT_PID" ]; then
               echo "--- [실패] 서버가 실행되지 않았습니다. 로그 마지막 부분을 출력합니다. ---"
-              tail -n 30 ~/app/app.log
+              tail -n 30 /home/aeranghae/app/app.log
               exit 1
+            else
+              echo "--- [성공] 서버가 정상적으로 실행되었습니다! (PID: $CURRENT_PID) ---"
+              exit 0
             fi
