@@ -88,7 +88,7 @@ jobs:
             
             echo "실행 파일: $NEW_JAR"
             nohup java -jar "$NEW_JAR" \
-              --spring.config.location=file:$APP_PATH/application-prod.yml \
+              --spring.config.location=file:$APP_PATH/application.yml \
               > $APP_PATH/app.log 2>&1 &
             
             # 6-5. 대기 및 결과 확인
