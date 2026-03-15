@@ -46,18 +46,31 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           script: |
-            # 6-1. 기존에 실행 중인 서버 프로세스 종료
+            # 6-1. 기존 프로세스 종료 (더 안전한 방식)
+            echo "기존 프로세스 종료 중..."
             PID=$(pgrep -f 'main-api')
             if [ -n "$PID" ]; then
               kill -15 $PID
               sleep 5
+              # 여전히 살아있다면 강제 종료
+              kill -9 $PID 2>/dev/null || true
             fi
             
-            # 6-2. 기존 plain.jar 파일이 남아있다면 삭제 (실행 오류 방지)
+            # 6-2. 기존 파일 정리
             rm -f ~/app/*-plain.jar
             
-            # 6-3. 서버 내부 설정 파일을 적용하여 새로운 서버 실행
-            # --spring.config.location 옵션으로 서버에 미리 만든 파일을 지정합니다.
+            # 6-3. 애플리케이션 실행
+            echo "새로운 버전 실행 중..."
+            # nohup과 disown을 조합하여 SSH 세션 종료 후에도 프로세스를 유지합니다.
             nohup java -jar ~/app/main-api-*.jar \
-              --spring.config.location=file:/home/aeranghae/app/application.yml \
+              --spring.config.location=file:/home/aeranghae/app/application-prod.yml \
               > ~/app/app.log 2>&1 &
+            
+            # 잠시 대기 후 프로세스가 잘 떴는지 확인
+            sleep 10
+            if pgrep -f 'main-api' > /dev/null; then
+              echo "서버가 성공적으로 실행되었습니다."
+            else
+              echo "서버 실행에 실패했습니다. 로그(~/app/app.log)를 확인하세요."
+              exit 1
+            fi
