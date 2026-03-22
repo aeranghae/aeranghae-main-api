@@ -1,10 +1,9 @@
 package cloud.aeranghae.main.controller;
 
-import cloud.aeranghae.main.config.auth.dto.SessionUser;
 import cloud.aeranghae.main.controller.dto.SignupRequestDto;
 import cloud.aeranghae.main.service.UserService;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,15 +13,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserApiController {
 
     private final UserService userService;
-    private final HttpSession httpSession;
 
     @PostMapping("/api/user/signup")
-    public String signup(@RequestBody SignupRequestDto requestDto) {
-        // 세션에서 현재 로그인한 유저의 이메일을 가져옴
-        SessionUser user = (SessionUser) httpSession.getAttribute("user");
-        if (user != null) {
-            userService.signup(user.getEmail(), requestDto.getNickname());
+    public String signup(@RequestBody SignupRequestDto requestDto,
+                         @AuthenticationPrincipal String email) { // ✅ 핵심: 스프링 시큐리티가 토큰을 해석해서 여기에 이메일을 쏙 넣어줍니다!
+
+        if (email != null) {
+            userService.signup(email, requestDto.getNickname());
+            return "success";
         }
-        return "success";
+        return "fail";
     }
 }
