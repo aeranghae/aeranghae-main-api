@@ -53,6 +53,9 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
+
+    // // LZ4 Java 라이브러리
+    implementation 'org.lz4:lz4-java:1.8.0'
 }
 
 tasks.named('test') {
@@ -61,4 +64,17 @@ tasks.named('test') {
 
 jar {
     enabled = false
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDirs = ["src/main/resources"]
+        }
+    }
+}
+
+// 🌟 빌드할 때 설정을 먼저 처리하도록 강제합니다.
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }

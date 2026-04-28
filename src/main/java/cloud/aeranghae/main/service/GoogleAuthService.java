@@ -51,7 +51,7 @@ public class GoogleAuthService {
                         .email(email)
                         .name(name)
                         .picture(pictureUrl)
-                        .role(Role.USER) // 혹은 기본 권한 설정
+                        .role(User.Role.USER) // 혹은 기본 권한 설정
                         .build()); // 신규 회원이면 객체 생성
 
         return userRepository.save(user); // DB에 저장

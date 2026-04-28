@@ -1,5 +1,6 @@
 package cloud.aeranghae.main.config.auth;
 
+import cloud.aeranghae.main.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -22,8 +23,9 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
-    @Value("${app.cors.allowed-origins}")
+    @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private List<String> allowedOrigins;
 
     @Bean
@@ -52,7 +54,8 @@ public class SecurityConfig {
                 )
 
                 // 5. 추가된 핵심 부분: 스프링 기본 인증 필터가 돌기 '전'에 우리가 만든 JWT 필터 끼워넣기!
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userRepository),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
