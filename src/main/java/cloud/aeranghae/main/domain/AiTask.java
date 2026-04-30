@@ -1,30 +1,40 @@
 package cloud.aeranghae.main.domain;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-
+import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
+@Getter
 @Entity
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 @Table(name = "ai_tasks")
+@EntityListeners(AuditingEntityListener.class)
 public class AiTask {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🌟 이 작업이 어떤 프로젝트 소속인지 알아야 합니다.
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id")
+    @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
-    // 🌟 작업의 현재 상태 (PENDING, COMPLETED, FAILED)
-    private String status;
-
-    // 🌟 사용자가 보낸 질문 (이건 목록에서 보여줘야 하니까 L1에 둡니다)
+    private String taskType;
     @Column(columnDefinition = "TEXT")
     private String prompt;
+    private String status;
+    private String summary;
 
-    // 🌟 생성 시간 (언제 시켰는지 알아야죠!)
+    @CreatedDate
+    @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    // 🌟 서비스에서 사용하는 핵심 메서드
+    public void complete(String summary) {
+        this.status = "COMPLETED";
+        this.summary = summary;
+    }
 }
