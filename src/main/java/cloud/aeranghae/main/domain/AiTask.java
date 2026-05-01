@@ -27,6 +27,7 @@ public class AiTask {
     private String prompt;
     private String status;
     private String summary;
+    private String build;
 
     @CreatedDate
     @Column(updatable = false)
