@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AiTaskService {
-    // 🌟 변수명 소문자로 통일
     private final AiTaskRepository aiTaskRepository;
     private final AiTaskLogRepository aiTaskLogRepository;
     private final ProjectRepository projectRepository;
